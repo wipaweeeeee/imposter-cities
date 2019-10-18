@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+		<title>Imposter Cities</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>	
+			body { margin: 0; }
+		</style>
+	</head>
+<body>
+
+	<video id="video" width="320" height="240" muted autoPlay>
+	  <source src="assets/green.mp4" type="video/mp4">
+	</video>
+
+	<video id="city" width="320" height="240" muted autoPlay>
+	  <source src="assets/city.mp4" type="video/mp4">
+	</video>
+	<div id="container"></div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/109/three.min.js"></script>
+
+<!------------- SHADER -------------->
+	<script id="fragment_shader" type="x-shader/x-fragment">
+        uniform float time;
+        uniform sampler2D vidTexture;
+        uniform sampler2D cityTexture;
+        varying vec2 vUv;
+
+        void main(  ) {
+            vec2 position = vUv;
+
+            vec4 bg = texture2D(cityTexture,vec2(position.x,position.y));
+            vec4 fg = texture2D(vidTexture,vec2(position.x,position.y));
+
+            float maxrb = max( fg.r, fg.b );
+    		float k = clamp( (fg.g-maxrb)*5.0, 0.0, 1.0 );
+
+    		float dg = fg.g; 
+    		fg.g = min( fg.g, maxrb*0.8 ); 
+    		fg += dg - fg.g;
+
+            gl_FragColor = mix(fg, bg, k);
+        }
+
+    </script>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        varying vec2 vUv;
+        void main()
+        {
+            vUv = uv;
+            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+            gl_Position = projectionMatrix * mvPosition;
+        }
+    </script>
+
+<!------------- THREE -------------->
+	<script>
+		var container;
+		var camera;
+		var scene;
+		var renderer;
+		var uniforms;
+
+		init();
+		animate();
+
+		function init() {
+			container = document.getElementById('container');
+			camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
+			camera.position.z = 10;
+			scene = new THREE.Scene();
+
+			var video = document.getElementById( 'video' );
+			var vidTexture = new THREE.VideoTexture( video );
+
+			var city = document.getElementById( 'city' );
+			var cityTexture = new THREE.VideoTexture( city );
+
+			uniforms = {
+                resolution: {value: new THREE.Vector2()},
+                vidTexture: {value: vidTexture},
+                cityTexture: {value: cityTexture}
+            }
+
+            var mat = new THREE.ShaderMaterial({
+                uniforms: uniforms,
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('fragment_shader').textContent,
+                blending: THREE.NormalBlending,
+                depthTest: false,
+                transparent: true
+            });
+
+			var geom = new THREE.PlaneGeometry(3.2, 2.4);
+			// var mat = new THREE.MeshBasicMaterial({color: 0x000});
+			var mesh = new THREE.Mesh( geom, mat );
+
+			scene.add(mesh);
+
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setClearColor( 0x00ffff);
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+
+			container.appendChild( renderer.domElement );
+		}
+
+		function animate() {
+			requestAnimationFrame( animate );
+		    render();
+		}
+
+		function render() {
+			renderer.render( scene, camera );
+		}
+
+	</script>
+</body>
+</html>
