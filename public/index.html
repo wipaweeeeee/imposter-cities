@@ -10,11 +10,11 @@
 	</head>
 <body>
 
-	<video id="video" width="320" height="240" muted autoPlay>
-	  <source src="assets/green.mp4" type="video/mp4">
+	<video id="video" width="120" height="120" muted autoPlay loop>
+	  <source src="assets/greenscreen.mp4" type="video/mp4">
 	</video>
 
-	<video id="city" width="320" height="240" muted autoPlay>
+	<video id="city" width="120" height="120" muted autoPlay loop>
 	  <source src="assets/city.mp4" type="video/mp4">
 	</video>
 	<div id="container"></div>
@@ -86,20 +86,16 @@
             var mat = new THREE.ShaderMaterial({
                 uniforms: uniforms,
                 vertexShader: document.getElementById('vertexShader').textContent,
-                fragmentShader: document.getElementById('fragment_shader').textContent,
-                blending: THREE.NormalBlending,
-                depthTest: false,
-                transparent: true
+                fragmentShader: document.getElementById('fragment_shader').textContent
             });
 
-			var geom = new THREE.PlaneGeometry(3.2, 2.4);
-			// var mat = new THREE.MeshBasicMaterial({color: 0x000});
+			var geom = new THREE.PlaneGeometry(6, 3.375);
 			var mesh = new THREE.Mesh( geom, mat );
 
 			scene.add(mesh);
 
 			renderer = new THREE.WebGLRenderer({ antialias: true });
-			renderer.setClearColor( 0x00ffff);
+			renderer.setClearColor( 0xffffff);
 			renderer.setPixelRatio( window.devicePixelRatio );
 			renderer.setSize( window.innerWidth, window.innerHeight );
 
