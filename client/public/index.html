@@ -74,7 +74,7 @@
 		animate();
 
 		function setupIO() {
-			const socket = io.connect('http://192.168.1.241:3002');
+			const socket = io.connect('http://10.0.0.2:3002');
 			socket.on('image', (image) => {
 				const imageElm = document.getElementById('video');
 				textureLoader.load(`data:image/jpeg;base64,${image}`, img => {
