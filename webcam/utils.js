@@ -42,6 +42,8 @@ exports.drawRectAroundBlobs = (binaryImg, dstImg, minPxSize, fixedRectWidth) => 
     stats
   } = binaryImg.connectedComponentsWithStats();
 
+  let count = 0;
+
   // pretend label 0 is background
   for (let label = 1; label < centroids.rows; label += 1) {
     const [x1, y1] = [stats.at(label, cv.CC_STAT_LEFT), stats.at(label, cv.CC_STAT_TOP)];
@@ -51,14 +53,20 @@ exports.drawRectAroundBlobs = (binaryImg, dstImg, minPxSize, fixedRectWidth) => 
     ];
     const size = stats.at(label, cv.CC_STAT_AREA);
     const blue = new cv.Vec(255, 0, 0);
+    
     if (minPxSize < size) {
+      count ++;
       dstImg.drawRectangle(
         new cv.Point(x1, y1),
         new cv.Point(x2, y2),
         { color: blue, thickness: 2 }
       );
     }
+    // console.log(count);
+    // return count; //hack for now to only take up to 3 blobs
   }
+  // console.log(count);
+  return count;
 };
 
 const drawRect = (image, rect, color, opts = { thickness: 2 }) =>
