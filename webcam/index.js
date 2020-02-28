@@ -2,7 +2,6 @@ const cv = require('opencv4nodejs');
 const cors = require('cors');
 const express = require('express');
 const path = require('path');
-const cors = require('cors');
 const settings = require('./global.json');
 const app = express();
 const server = require('http').createServer(app);
