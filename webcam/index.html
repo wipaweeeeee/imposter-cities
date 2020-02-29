@@ -12,16 +12,14 @@
 
 	<div id="numIndicator"></div>
 
-	<video id="crowd" width="120" height="120" muted autoPlay loop>
-	  <source src="assets/movie_crowd.mp4" type="video/mp4">
+	<video id="crowd" height="120" muted autoPlay loop>
+	  <source src="movie_crowd.mp4" type="video/mp4">
 	</video>
 
-	<video id="walk" width="120" height="120" muted autoPlay loop>
-	  <source src="assets/green_trim.mov" type="video/mp4">
-	</video>
+	<img id="video" height="120" src="cat.jpeg"></img>
 
-	<video id="alone" width="120" height="120" muted autoPlay loop>
-	  <source src="assets/movie_alone.mp4" type="video/mp4">
+	<video id="alone" height="120" muted autoPlay loop>
+	  <source src="movie_alone.mp4" type="video/mp4">
 	</video>
 
 	<div id="container"></div>
@@ -74,6 +72,7 @@
 		async function showStream(img){
 			streamPreviewEle.src = `data:image/jpeg;base64,${img}`;
 		}
+
 		function setupIO() {
             console.log('setting up IO')
 			const socket = io.connect();
@@ -81,7 +80,7 @@
 				textureLoader.load(`data:image/jpeg;base64,${data.image}`, img => {
                     uniforms.vidTexture.value = img;
 				})
-				showStream(image);
+				showStream(data.image);
 
 				numBlob = data.numBlob;
 
@@ -103,7 +102,6 @@
 				newTexture = new THREE.VideoTexture( alone );
 			}
 
-			// console.log(vidTexture.image)
 			return (
 				mat.uniforms.cityTexture.value = newTexture
             )
@@ -124,7 +122,7 @@
 			// var vidTexture = new THREE.VideoTexture( video );
 			// var vidTexture = new THREE.TextureLoader().load(video.src);
 
-			var city = document.getElementById( 'city' );
+			var city = document.getElementById( 'crowd' );
             var cityTexture = new THREE.VideoTexture( city );
             cityTexture.minFilter = THREE.LinearFilter;
 
