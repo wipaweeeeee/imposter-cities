@@ -10,16 +10,16 @@
 	</head>
 <body>
 
-	<!-- <video id="video" width="120" height="120" muted autoPlay loop>
-	  <source src="greenscreen.mp4" type="video/mp4">
-    </video> -->
-    <!-- <video autoplay="autoplay" width="500" height="500" src="http://10.0.0.15/Streaming/channels/101/httpPreview" type="video/mjpeg"> -->
-    <!-- </video> -->
-
-	<img id="video" height="120"/>
-	<video id="city" height="120" muted autoPlay loop>
-	  <source src="city.mp4" type="video/mp4">
+	<div id="numIndicator"></div>
+	<img id="video" height="120" src="cat.jpeg"></img>
+	<video id="crowd" height="120" muted autoPlay loop>
+	  <source src="movie_crowd.mp4" type="video/mp4">
 	</video>
+
+	<video id="alone" height="120" muted autoPlay loop>
+	  <source src="movie_alone.mp4" type="video/mp4">
+	</video>
+
 	<div id="container"></div>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/109/three.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.dev.js"></script>
@@ -61,24 +61,50 @@
 
 <!------------- THREE -------------->
 	<script>
-		var container, camera, scene, renderer, mesh;
+		var container, camera, scene, renderer, mesh, mat;
 		var uniforms, textureLoader;
 		var streamPreviewEle;
+		var numBlob;
 
 		window.addEventListener('load', () => init());
 		async function showStream(img){
 			streamPreviewEle.src = `data:image/jpeg;base64,${img}`;
 		}
+
 		function setupIO() {
             console.log('setting up IO')
 			const socket = io.connect();
-			socket.on('image', (image) => {
-				textureLoader.load(`data:image/jpeg;base64,${image}`, img => {
+			socket.on('data', (data) => {
+				textureLoader.load(`data:image/jpeg;base64,${data.image}`, img => {
                     uniforms.vidTexture.value = img;
 				})
-				showStream(image);
+				showStream(data.image);
+
+				numBlob = data.numBlob;
+
+				var numIndicator = document.getElementById('numIndicator');
+				numIndicator.innerHTML = numBlob;
 			})
 		}
+
+		function updateUniform (numBlob) {
+
+			var crowd = document.getElementById( 'crowd' );
+			var alone = document.getElementById( 'alone' );
+
+			var newTexture;
+
+			if (numBlob > 1) {
+				newTexture = new THREE.VideoTexture( crowd );
+			} else {
+				newTexture = new THREE.VideoTexture( alone );
+			}
+
+			return (
+				mat.uniforms.cityTexture.value = newTexture
+            )
+		}
+
 		function init() {
 			streamPreviewEle = document.getElementById('video');
 			container = document.getElementById('container');
@@ -94,7 +120,7 @@
 			// var vidTexture = new THREE.VideoTexture( video );
 			// var vidTexture = new THREE.TextureLoader().load(video.src);
 
-			var city = document.getElementById( 'city' );
+			var city = document.getElementById( 'crowd' );
             var cityTexture = new THREE.VideoTexture( city );
             cityTexture.minFilter = THREE.LinearFilter;
 
@@ -104,7 +130,7 @@
                 cityTexture: {value: cityTexture}
             }
 
-            var mat = new THREE.ShaderMaterial({
+            mat = new THREE.ShaderMaterial({
                 uniforms: uniforms,
                 vertexShader: document.getElementById('vertexShader').textContent,
                 fragmentShader: document.getElementById('fragment_shader').textContent
@@ -130,6 +156,9 @@
 		function animate() {
 			requestAnimationFrame( animate );
 		    render();
+
+		    mat.uniforms.needsUpdate = true;
+		    updateUniform(numBlob);
         }
 
 		function render() {

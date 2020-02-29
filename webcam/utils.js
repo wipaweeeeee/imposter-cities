@@ -1,0 +1,86 @@
+const path = require('path');
+
+const cv = require('opencv4nodejs');
+
+exports.cv = cv;
+
+const dataPath = path.resolve(__dirname, '../data');
+exports.dataPath = dataPath;
+exports.getDataFilePath = fileName => path.resolve(dataPath, fileName);
+
+const grabFrames = (videoFile, delay, onFrame) => {
+  const cap = new cv.VideoCapture(videoFile);
+  let done = false;
+  const intvl = setInterval(() => {
+    let frame = cap.read();
+    // loop back to start on end of stream reached
+    if (frame.empty) {
+      cap.reset();
+      frame = cap.read();
+    }
+    onFrame(frame);
+
+    const key = cv.waitKey(delay);
+    done = key !== -1 && key !== 255;
+    if (done) {
+      clearInterval(intvl);
+      console.log('Key pressed, exiting.');
+    }
+  }, 0);
+};
+exports.grabFrames = grabFrames;
+
+exports.runVideoDetection = (src, detect) => {
+  grabFrames(src, 1, frame => {
+    detect(frame);
+  });
+};
+
+exports.drawRectAroundBlobs = (binaryImg, dstImg, minPxSize, fixedRectWidth) => {
+  const {
+    centroids,
+    stats
+  } = binaryImg.connectedComponentsWithStats();
+
+  let count = 0;
+
+  // pretend label 0 is background
+  for (let label = 1; label < centroids.rows; label += 1) {
+    const [x1, y1] = [stats.at(label, cv.CC_STAT_LEFT), stats.at(label, cv.CC_STAT_TOP)];
+    const [x2, y2] = [
+      x1 + (fixedRectWidth || stats.at(label, cv.CC_STAT_WIDTH)),
+      y1 + (fixedRectWidth || stats.at(label, cv.CC_STAT_HEIGHT))
+    ];
+    const size = stats.at(label, cv.CC_STAT_AREA);
+    const blue = new cv.Vec(255, 0, 0);
+    
+    if (minPxSize < size) {
+      count ++;
+      dstImg.drawRectangle(
+        new cv.Point(x1, y1),
+        new cv.Point(x2, y2),
+        { color: blue, thickness: 2 }
+      );
+    }
+    // console.log(count);
+    // return count; //hack for now to only take up to 3 blobs
+  }
+  // console.log(count);
+  return count;
+};
+
+const drawRect = (image, rect, color, opts = { thickness: 2 }) =>
+  image.drawRectangle(
+    rect,
+    color,
+    opts.thickness,
+    cv.LINE_8
+  );
+
+exports.drawRect = drawRect;
+exports.drawBlueRect = (image, rect, opts = { thickness: 2 }) =>
+  drawRect(image, rect, new cv.Vec(255, 0, 0), opts);
+exports.drawGreenRect = (image, rect, opts = { thickness: 2 }) =>
+  drawRect(image, rect, new cv.Vec(0, 255, 0), opts);
+exports.drawRedRect = (image, rect, opts = { thickness: 2 }) =>
+  drawRect(image, rect, new cv.Vec(0, 0, 255), opts);
