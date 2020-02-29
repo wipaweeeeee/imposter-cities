@@ -1,5 +1,14 @@
 # Imposter Cities Greenscreen
 
+## How to set up the camera
+
+1. Follow the instruction to set up Hikvision camera (in the package)
+2. Connect an ethernet cable from the new router ethernet port to a modem
+3. Connect an ethernet cable from the camera to one of the router ports
+4. Make sure the router and the camera are connected to power
+5. Make sure you are connected to the new router's wifi and can access the camera through Hikvision portal
+
+## How to run 
 1. Setup Hikvision settings to match images
 
     Video/Audio Settings
