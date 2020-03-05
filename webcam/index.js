@@ -6,14 +6,45 @@ const settings = require('./global.json');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
-const { grabFrames, drawRectAroundBlobs } = require('./utils');
+// const tf = require('@tensorflow/tfjs-node');
+// const cocoSsd = require('@tensorflow-models/coco-ssd');
 
 // Settings
 const PORT = settings.Server.settings.port;
 const DEVELOPMENT_MODE = false;
 const wCap = DEVELOPMENT_MODE? new cv.VideoCapture(0) : new cv.VideoCapture(settings.Camera.stream.source);
 
-const bgSubtractor = new cv.BackgroundSubtractorMOG2();
+//tensorflow
+
+// const detectFrame = (video, model) => {
+//   model.detect(video).then(predictions => {
+//     console.log(predictions)
+//   })
+// }
+
+
+// const modelPromise = cocoSsd.load().then(model => {
+
+  // const img = wCap.read();
+  // const img = cv.imread(wCap);
+
+  // const size = new cv.Size(300, 300);
+  // const vec3 = new cv.Vec(0, 0, 0);
+  // const resizedImg = cv.blobFromImage(img, 1, size, vec3, true, true);
+  // const height = img.sizes[0];
+  // const width = img.sizes[0];
+  // const numChannels = 3;
+
+  // const values = new Int32Array(height * width * numChannels);
+  // const outShape = [ height, width, numChannels];
+  // const input = tf.tensor3d(values, outShape, 'int32');
+
+  // console.log(img)
+
+  // detectFrame(img, model)
+// });
+
+
 let numBlob;
 
 io.on('connection', function(socket){
@@ -25,13 +56,13 @@ function byteCount(s) {
 }
 
 setInterval(() => {
+
     const frame = wCap.read();
     // Optimization
     let frameOpt = frame.resizeToMax(500);
     frameOpt = frameOpt.convertTo(cv.CV_64FC3);
-    let blobs_count = grabFramesHelper(frameOpt);
     const image = cv.imencode('.jpg', frameOpt).toString('base64');
-    DEVELOPMENT_MODE && console.log(byteCount(image))
+    // DEVELOPMENT_MODE && console.log(byteCount(image))
     io.volatile.emit('data', {image: image, numBlob: numBlob});
 }, 1000 / 16)
 
@@ -45,25 +76,3 @@ app.get('/', (req, res) => {
 })
 
 server.listen(PORT, () => console.log(`Listening on ${ PORT }`))
-
-function grabFramesHelper(frame){
-  const foreGroundMask = bgSubtractor.apply(frame);
-
-  const iterations = 1;
-  const dilated = foreGroundMask.dilate(
-    cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(4, 4)),
-    new cv.Point(-1, -1),
-    iterations
-  );
-  const blurred = dilated.blur(new cv.Size(10, 10));
-  const thresholded = blurred.threshold(200, 255, cv.THRESH_BINARY);
-
-  const minPxSize = 6000;
-  numBlob = drawRectAroundBlobs(thresholded, frame, minPxSize);
-
-  // cv.imshow('foreGroundMask', foreGroundMask);
-  // cv.imshow('thresholded', thresholded);
-  // cv.imshow('frame', frame);
-
-  return numBlob;
-}

@@ -6,11 +6,17 @@
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>	
 			body { margin: 0; }
+
+			#obj {
+				height: 120px;
+				position: absolute;
+				left: 0;
+			}
 		</style>
 	</head>
 <body>
 
-	<div id="numIndicator"></div>
+	<canvas id="obj"></canvas>
 	<img id="video" height="120" src="cat.jpeg"></img>
 	<video id="crowd" height="120" muted autoPlay loop>
 	  <source src="movie_crowd.mp4" type="video/mp4">
@@ -20,7 +26,10 @@
 	  <source src="movie_alone.mp4" type="video/mp4">
 	</video>
 
+	
 	<div id="container"></div>
+	<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"> </script>
+	<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"> </script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/109/three.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.dev.js"></script>
 
@@ -61,12 +70,17 @@
 
 <!------------- THREE -------------->
 	<script>
-		var container, camera, scene, renderer, mesh, mat;
+		var container, camera, scene, renderer, mesh, mat, canvas, context;
 		var uniforms, textureLoader;
 		var streamPreviewEle;
 		var numBlob;
 
-		window.addEventListener('load', () => init());
+		window.addEventListener('load', () => {
+			cocoSsd.load().then(model => {
+				init(model);
+			});
+		});
+
 		async function showStream(img){
 			streamPreviewEle.src = `data:image/jpeg;base64,${img}`;
 		}
@@ -79,16 +93,11 @@
                     uniforms.vidTexture.value = img;
 				})
 				showStream(data.image);
-
-				numBlob = data.numBlob;
-
-				var numIndicator = document.getElementById('numIndicator');
-				numIndicator.innerHTML = numBlob;
 			})
 		}
 
 		function updateUniform (numBlob) {
-
+			console.log(numBlob)
 			var crowd = document.getElementById( 'crowd' );
 			var alone = document.getElementById( 'alone' );
 
@@ -105,16 +114,58 @@
             )
 		}
 
-		function init() {
+		function drawBlob(predictions) {
+			let canvas = document.getElementById("obj");
+			let ctx = canvas.getContext('2d');
+			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+			ctx.fillStyle = "rgba(0,0,0,0)";
+
+			const font = "16px sans-serif";
+		    ctx.font = font;
+		    ctx.textBaseline = "top";
+
+			predictions.forEach( prediction => {
+				const x = prediction.bbox[0];
+				const y = prediction.bbox[1];
+				const width = prediction.bbox[2];
+				const height = prediction.bbox[3];
+				ctx.strokeStyle = "#00ffff";
+				ctx.lineWidth = 4;
+				ctx.strokeRect(x, y, width, height);
+
+				//label
+				ctx.fillStyle = "#00FFFF";
+			    const textWidth = ctx.measureText(prediction.class).width;
+			    const textHeight = parseInt(font, 10); // base 10
+			    ctx.fillRect(x, y, textWidth + 4, textHeight + 4);
+			    //text
+			    ctx.fillStyle = "#000000";
+      			ctx.fillText(prediction.class, x, y);
+			});
+		}
+
+		const detectFrame = (img, model) => {
+			model.detect(img).then(predictions => {
+				// console.log(predictions.length)
+				numBlob = predictions.length;
+				drawBlob(predictions);
+				requestAnimationFrame(() => {
+					detectFrame(img, model);
+					animate();
+				});
+			})
+		}
+
+		function init(model) {
 			streamPreviewEle = document.getElementById('video');
+			detectFrame(streamPreviewEle, model)
 			container = document.getElementById('container');
 			camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
 			camera.position.z = 4;
 			scene = new THREE.Scene();
 
-			var video = document.getElementById( 'video' );
 			textureLoader = new THREE.TextureLoader();
-			var texture = new THREE.VideoTexture("cat.jpeg");
+			var texture = new THREE.VideoTexture(streamPreviewEle);
             texture.minFilter = THREE.LinearFilter;
 
 			// var vidTexture = new THREE.VideoTexture( video );
@@ -136,12 +187,14 @@
                 fragmentShader: document.getElementById('fragment_shader').textContent
             });
 
-			var geom = new THREE.PlaneGeometry(6, 3.375);
+			var geom = new THREE.PlaneGeometry(6, 6);
 			mesh = new THREE.Mesh( geom, mat );
 			scene.add(mesh);
 
-            var canvas = document.createElement( 'canvas' );
-            var context = canvas.getContext( 'webgl2', { alpha: false } );
+            canvas = document.createElement( 'canvas' );
+            context = canvas.getContext( 'webgl2', { alpha: false } );
+            
+
             renderer = new THREE.WebGLRenderer( { antialias: true, canvas: canvas, context: context } );
 			renderer.setClearColor( 0xffffff);
 			renderer.setPixelRatio( window.devicePixelRatio );
@@ -150,12 +203,14 @@
             container.appendChild( renderer.domElement );
 
 			setupIO();
-			animate();
+			// animate();
+			
 		}
 
 		function animate() {
-			requestAnimationFrame( animate );
+			// requestAnimationFrame( animate );
 		    render();
+		    // ts();
 
 		    mat.uniforms.needsUpdate = true;
 		    updateUniform(numBlob);
