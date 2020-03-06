@@ -12,18 +12,25 @@
 				position: absolute;
 				left: 0;
 			}
+
+			#numBlob {
+				padding: 20px;
+				font-family: sans-serif;
+			}
+
 		</style>
 	</head>
 <body>
 
+	<div id="numBlob"></div>
 	<canvas id="obj"></canvas>
 	<img id="video" height="120" src="cat.jpeg"></img>
 	<video id="crowd" height="120" muted autoPlay loop>
-	  <source src="movie_crowd.mp4" type="video/mp4">
+	  <source src="unforgiven.mp4" type="video/mp4">
 	</video>
 
 	<video id="alone" height="120" muted autoPlay loop>
-	  <source src="movie_alone.mp4" type="video/mp4">
+	  <source src="brokeback.mp4" type="video/mp4">
 	</video>
 
 	
@@ -101,6 +108,9 @@
 			var crowd = document.getElementById( 'crowd' );
 			var alone = document.getElementById( 'alone' );
 
+			var numIndicator = document.getElementById('numBlob');
+			numIndicator.innerHTML = 'number of people: ' + numBlob;
+
 			var newTexture;
 
 			if (numBlob > 1) {
@@ -120,7 +130,7 @@
 			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 			ctx.fillStyle = "rgba(0,0,0,0)";
 
-			const font = "16px sans-serif";
+			const font = "12px sans-serif";
 		    ctx.font = font;
 		    ctx.textBaseline = "top";
 
@@ -130,7 +140,7 @@
 				const width = prediction.bbox[2];
 				const height = prediction.bbox[3];
 				ctx.strokeStyle = "#00ffff";
-				ctx.lineWidth = 4;
+				ctx.lineWidth = 2;
 				ctx.strokeRect(x, y, width, height);
 
 				//label
@@ -161,15 +171,12 @@
 			detectFrame(streamPreviewEle, model)
 			container = document.getElementById('container');
 			camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
-			camera.position.z = 4;
+			camera.position.z = 7;
 			scene = new THREE.Scene();
 
 			textureLoader = new THREE.TextureLoader();
 			var texture = new THREE.VideoTexture(streamPreviewEle);
             texture.minFilter = THREE.LinearFilter;
-
-			// var vidTexture = new THREE.VideoTexture( video );
-			// var vidTexture = new THREE.TextureLoader().load(video.src);
 
 			var city = document.getElementById( 'crowd' );
             var cityTexture = new THREE.VideoTexture( city );

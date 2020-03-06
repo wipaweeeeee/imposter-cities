@@ -45,8 +45,6 @@ const wCap = DEVELOPMENT_MODE? new cv.VideoCapture(0) : new cv.VideoCapture(sett
 // });
 
 
-let numBlob;
-
 io.on('connection', function(socket){
 	console.log('connection found')
 });
@@ -58,13 +56,15 @@ function byteCount(s) {
 setInterval(() => {
 
     const frame = wCap.read();
+    const region = frame.getRegion(new cv.Rect(300, 200, 500, 400))
     // Optimization
-    let frameOpt = frame.resizeToMax(500);
+    let frameOpt = region.resizeToMax(500);
     frameOpt = frameOpt.convertTo(cv.CV_64FC3);
     const image = cv.imencode('.jpg', frameOpt).toString('base64');
+
     // DEVELOPMENT_MODE && console.log(byteCount(image))
-    io.volatile.emit('data', {image: image, numBlob: numBlob});
-}, 1000 / 16)
+    io.volatile.emit('data', {image: image});
+}, 1000 / 60)
 
 app.use(cors());
 app.use(express.static('assets'))
