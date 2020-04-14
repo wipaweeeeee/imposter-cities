@@ -1,3 +1,4 @@
+const fs = require('fs');
 const cv = require('opencv4nodejs');
 const cors = require('cors');
 const express = require('express');
@@ -6,12 +7,15 @@ const settings = require('./global.json');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
+
 // const tf = require('@tensorflow/tfjs-node');
 // const cocoSsd = require('@tensorflow-models/coco-ssd');
 
 // Settings
+const ASSET_FOLDER = './assets/';
 const PORT = settings.Server.settings.port;
-const DEVELOPMENT_MODE = false;
+const DEVELOPMENT_MODE = true;
+const USE_STOCK_IMAGE = true;
 const wCap = DEVELOPMENT_MODE? new cv.VideoCapture(0) : new cv.VideoCapture(settings.Camera.stream.source);
 
 //tensorflow
@@ -53,14 +57,14 @@ function byteCount(s) {
     return encodeURI(s).split(/%..|./).length - 1;
 }
 
-setInterval(() => {
 
+setInterval(() => {
     const frame = wCap.read();
     const region = frame.getRegion(new cv.Rect(300, 200, 500, 400))
     // Optimization
     let frameOpt = region.resizeToMax(500);
     frameOpt = frameOpt.convertTo(cv.CV_64FC3);
-    const image = cv.imencode('.jpg', frameOpt).toString('base64');
+    const image = USE_STOCK_IMAGE? fs.readFileSync(ASSET_FOLDER + 'pavillion_invert_mg.png').toString('base64') : cv.imencode('.jpg', frameOpt).toString('base64');
 
     // DEVELOPMENT_MODE && console.log(byteCount(image))
     io.volatile.emit('data', {image: image});

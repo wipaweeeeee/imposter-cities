@@ -1,7 +1,9 @@
 # Imposter Cities Greenscreen
 
-## How to set up the camera
+## Camera
+Hikvision DS-2CD2043G0-I 4MP Outdoor Network Bullet Camera with Night Vision & 4mm Lens (White)
 
+## How to set up the camera
 1. Follow the instruction to set up Hikvision camera (in the package)
 2. Connect an ethernet cable from the new router ethernet port to a modem
 3. Connect an ethernet cable from the camera to one of the router ports
