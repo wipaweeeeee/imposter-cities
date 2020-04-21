@@ -18,6 +18,10 @@
 				font-family: sans-serif;
 			}
 
+			#container canvas {
+				/*width: 500px;*/
+			}
+
 		</style>
 	</head>
 <body>
@@ -26,18 +30,17 @@
 	<canvas id="obj"></canvas>
 	<img id="video" height="120" src="cat.jpeg"></img>
 	<video id="crowd" height="120" muted autoPlay loop>
-	  <source src="unforgiven.mp4" type="video/mp4">
+	  <source src="hmt.mp4" type="video/mp4">
 	</video>
 
 	<video id="alone" height="120" muted autoPlay loop>
-	  <source src="brokeback.mp4" type="video/mp4">
+	  <source src="xfiles.mp4" type="video/mp4">
 	</video>
 
 	
 	<div id="container"></div>
 	<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"> </script>
 	<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"> </script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/109/three.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.dev.js"></script>
 
 	<!------------- SHADER -------------->
@@ -53,15 +56,15 @@
             vec4 bg = texture2D(cityTexture,vec2(position.x,position.y));
             vec4 fg = texture2D(vidTexture,vec2(position.x,position.y));
 
-            //float maxrb = max( fg.r, fg.b );
-    		float k = clamp( (fg.r-fg.g) / .8, 0.0, 1.0 );
+            float maxrb = max( fg.r, fg.b );
+    		float k = clamp( (fg.g-maxrb)*5.0, 0.0, 1.0 );
 
-    		float dg = fg.r;
-    		fg.r = min( fg.r, fg.g * 1.2 ); 
-    		fg += dg - fg.r;
+    		float dg = fg.g; 
+    		fg.g = min( fg.g, maxrb*1.0 ); 
+    		fg += dg - fg.g;
 
 			//gl_FragColor = fg;
-            gl_FragColor = mix(fg, bg, k);
+           	gl_FragColor = mix(fg, bg, k);
         }
 
     </script>
@@ -76,17 +79,28 @@
     </script>
 
 <!------------- THREE -------------->
-	<script>
+	<script type="module">
+
+		import {EffectComposer} from 'https://threejsfundamentals.org/threejs/resources/threejs/r115/examples/jsm/postprocessing/EffectComposer.js';
+		import {RenderPass} from 'https://threejsfundamentals.org/threejs/resources/threejs/r115/examples/jsm/postprocessing/RenderPass.js';
+		import {ShaderPass} from 'https://threejsfundamentals.org/threejs/resources/threejs/r115/examples/jsm/postprocessing/ShaderPass.js';
+		import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r115/build/three.module.js';
+		import {GUI} from 'https://threejsfundamentals.org/threejs/../3rdparty/dat.gui.module.js';
+
 		var container, camera, scene, renderer, mesh, mat, canvas, context;
 		var uniforms, textureLoader;
 		var streamPreviewEle;
 		var numBlob;
+		var composer;
+		var lutTextures, lutSettings;
+		var effectLUT, effectLUTNearest;
 
-		window.addEventListener('load', () => {
-			cocoSsd.load().then(model => {
-				init(model);
-			});
-		});
+		init();
+		// window.addEventListener('load', () => {
+		// 	cocoSsd.load().then(model => {
+		// 		init(model);
+		// 	});
+		// });
 
 		async function showStream(img){
 			streamPreviewEle.src = `data:image/jpeg;base64,${img}`;
@@ -113,10 +127,10 @@
 
 			var newTexture;
 
-			if (numBlob > 1) {
-				newTexture = new THREE.VideoTexture( crowd );
-			} else {
+			if (numBlob > 0) {
 				newTexture = new THREE.VideoTexture( alone );
+			} else {
+				newTexture = new THREE.VideoTexture( crowd );
 			}
 
 			return (
@@ -124,61 +138,158 @@
             )
 		}
 
-		function drawBlob(predictions) {
-			let canvas = document.getElementById("obj");
-			let ctx = canvas.getContext('2d');
-			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-			ctx.fillStyle = "rgba(0,0,0,0)";
+		// function drawBlob(predictions) {
+		// 	let canvas = document.getElementById("obj");
+		// 	let ctx = canvas.getContext('2d');
+		// 	ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+		// 	ctx.fillStyle = "rgba(0,0,0,0)";
 
-			const font = "12px sans-serif";
-		    ctx.font = font;
-		    ctx.textBaseline = "top";
+		// 	const font = "12px sans-serif";
+		//     ctx.font = font;
+		//     ctx.textBaseline = "top";
 
-			predictions.forEach( prediction => {
-				const x = prediction.bbox[0];
-				const y = prediction.bbox[1];
-				const width = prediction.bbox[2];
-				const height = prediction.bbox[3];
-				ctx.strokeStyle = "#00ffff";
-				ctx.lineWidth = 2;
-				ctx.strokeRect(x, y, width, height);
+		// 	predictions.forEach( prediction => {
+		// 		const x = prediction.bbox[0];
+		// 		const y = prediction.bbox[1];
+		// 		const width = prediction.bbox[2];
+		// 		const height = prediction.bbox[3];
+		// 		ctx.strokeStyle = "#00ffff";
+		// 		ctx.lineWidth = 2;
+		// 		ctx.strokeRect(x, y, width, height);
 
-				//label
-				ctx.fillStyle = "#00FFFF";
-			    const textWidth = ctx.measureText(prediction.class).width;
-			    const textHeight = parseInt(font, 10); // base 10
-			    ctx.fillRect(x, y, textWidth + 4, textHeight + 4);
-			    //text
-			    ctx.fillStyle = "#000000";
-      			ctx.fillText(prediction.class, x, y);
-			});
-		}
+		// 		//label
+		// 		ctx.fillStyle = "#00FFFF";
+		// 	    const textWidth = ctx.measureText(prediction.class).width;
+		// 	    const textHeight = parseInt(font, 10); // base 10
+		// 	    ctx.fillRect(x, y, textWidth + 4, textHeight + 4);
+		// 	    //text
+		// 	    ctx.fillStyle = "#000000";
+  //     			ctx.fillText(prediction.class, x, y);
+		// 	});
+		// }
 
-		const detectFrame = (img, model) => {
-			model.detect(img).then(predictions => {
-				// console.log(predictions.length)
-				numBlob = predictions.length;
-				drawBlob(predictions);
-				requestAnimationFrame(() => {
-					detectFrame(img, model);
-					animate();
-				});
-			})
-		}
+		// const detectFrame = (img, model) => {
+		// 	model.detect(img).then(predictions => {
+		// 		// console.log(predictions.length)
+		// 		numBlob = predictions.length;
+		// 		drawBlob(predictions);
+		// 		requestAnimationFrame(() => {
+		// 			detectFrame(img, model);
+		// 			animate();
+		// 		});
+		// 	})
+		// }
 
 		function init(model) {
+			//LUT
+			lutTextures = [
+				{ name: 'handmaids', url: './hmt-s16n.png'},
+				{ name: 'xfiles', url: './xfile-s16n.png'}
+			]
+
+			const makeIdentityLutTexture = function() {
+			    const identityLUT = new Uint8Array([
+			        0,   0,   0, 255,  // black
+			      255,   0,   0, 255,  // red
+			        0,   0, 255, 255,  // blue
+			      255,   0, 255, 255,  // magenta
+			        0, 255,   0, 255,  // green
+			      255, 255,   0, 255,  // yellow
+			        0, 255, 255, 255,  // cyan
+			      255, 255, 255, 255,  // white
+			    ]);
+
+			    return function(filter) {
+			      const texture = new THREE.DataTexture(identityLUT, 4, 2, THREE.RGBAFormat);
+			      texture.minFilter = filter;
+			      texture.magFilter = filter;
+			      texture.needsUpdate = true;
+			      texture.flipY = false;
+			      return texture;
+			    };
+			}();
+
+			const makeLUTTexture = function() {
+			    const imgLoader = new THREE.ImageLoader();
+			    const ctx = document.createElement('canvas').getContext('2d');
+
+			    return function(info) {
+			      const texture = makeIdentityLutTexture(
+			          info.filter ? THREE.LinearFilter : THREE.NearestFilter);
+
+			      if (info.url) {
+			        const lutSize = info.size;
+
+			        // set the size to 2 (the identity size). We'll restore it when the
+			        // image has loaded. This way the code using the lut doesn't have to
+			        // care if the image has loaded or not
+			        info.size = 2;
+
+			        imgLoader.load(info.url, function(image) {
+			          const width = lutSize * lutSize;
+			          const height = lutSize;
+			          info.size = lutSize;
+			          ctx.canvas.width = width;
+			          ctx.canvas.height = height;
+			          ctx.drawImage(image, 0, 0);
+			          const imageData = ctx.getImageData(0, 0, width, height);
+
+			          texture.image.data = new Uint8Array(imageData.data.buffer);
+			          texture.image.width = width;
+			          texture.image.height = height;
+			          texture.needsUpdate = true;
+			        });
+			      }
+
+			      return texture;
+			    };
+			}();
+
+			lutTextures.forEach((info) => {
+			    // if not size set get it from the filename
+			    if (!info.size) {
+			      // assumes filename ends in '-s<num>[n]'
+			      // where <num> is the size of the 3DLUT cube
+			      // and [n] means 'no filtering' or 'nearest'
+			      //
+			      // examples:
+			      //    'foo-s16.png' = size:16, filter: true
+			      //    'bar-s8n.png' = size:8, filter: false
+			      const m = /-s(\d+)(n*)\.[^.]+$/.exec(info.url);
+			      if (m) {
+			        info.size = parseInt(m[1]);
+			        info.filter = info.filter === undefined ? m[2] !== 'n' : info.filter;
+			      }
+			    }
+
+			    info.texture = makeLUTTexture(info);
+			});
+
+			const lutNameIndexMap = {};
+			
+			lutTextures.forEach((info, ndx) => {
+			    lutNameIndexMap[info.name] = ndx;
+			});
+
+			lutSettings = {
+			  lut: lutNameIndexMap.handmaids,
+			};
+
+			const gui = new GUI({ width: 300 });
+			gui.add(lutSettings, 'lut', lutNameIndexMap);
+
 			streamPreviewEle = document.getElementById('video');
-			detectFrame(streamPreviewEle, model)
+			// detectFrame(streamPreviewEle, model)
 			container = document.getElementById('container');
 			camera = new THREE.PerspectiveCamera( 45, 0.56, 1, 1000 );
-			camera.position.z = 7;
+			camera.position.z = 6.4;
 			scene = new THREE.Scene();
 
 			textureLoader = new THREE.TextureLoader();
 			var texture = new THREE.VideoTexture(streamPreviewEle);
             texture.minFilter = THREE.LinearFilter;
 
-			var city = document.getElementById( 'crowd' );
+			var city = document.getElementById( 'alone' );
             var cityTexture = new THREE.VideoTexture( city );
             cityTexture.minFilter = THREE.LinearFilter;
 
@@ -201,30 +312,125 @@
             canvas = document.createElement( 'canvas' );
             context = canvas.getContext( 'webgl2', { alpha: false } );
             
-
             renderer = new THREE.WebGLRenderer( { antialias: true, canvas: canvas, context: context } );
-			renderer.setClearColor( 0xffffff);
-			renderer.setPixelRatio( window.devicePixelRatio );
-			// renderer.setSize( window.innerWidth, window.innerHeight );
+			// renderer.setClearColor( 0xffffff);
+			// renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setSize( 800, 400 );
 
             container.appendChild( renderer.domElement );
 
+        // @TODO: move this to another file
+		const lutShader = {
+		    uniforms: {
+		      tDiffuse: { value: null },
+		      lutMap:  { value: null },
+		      lutMapSize: { value: 1, },
+		    },
+		    vertexShader: `
+		      varying vec2 vUv;
+		      void main() {
+		        vUv = uv;
+		        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+		      }
+		    `,
+		    fragmentShader: `
+		      #include <common>
+
+		      #define FILTER_LUT true
+
+		      uniform sampler2D tDiffuse;
+		      uniform sampler2D lutMap;
+		      uniform float lutMapSize;
+
+		      varying vec2 vUv;
+
+		      vec4 sampleAs3DTexture(sampler2D tex, vec3 texCoord, float size) {
+		        float sliceSize = 1.0 / size;                  // space of 1 slice
+		        float slicePixelSize = sliceSize / size;       // space of 1 pixel
+		        float width = size - 1.0;
+		        float sliceInnerSize = slicePixelSize * width; // space of size pixels
+		        float zSlice0 = floor( texCoord.z * width);
+		        float zSlice1 = min( zSlice0 + 1.0, width);
+		        float xOffset = slicePixelSize * 0.5 + texCoord.x * sliceInnerSize;
+		        float yRange = (texCoord.y * width + 0.5) / size;
+		        float s0 = xOffset + (zSlice0 * sliceSize);
+
+		        #ifdef FILTER_LUT
+
+		          float s1 = xOffset + (zSlice1 * sliceSize);
+		          vec4 slice0Color = texture2D(tex, vec2(s0, yRange));
+		          vec4 slice1Color = texture2D(tex, vec2(s1, yRange));
+		          float zOffset = mod(texCoord.z * width, 1.0);
+		          return mix(slice0Color, slice1Color, zOffset);
+
+		        #else
+
+		          return texture2D(tex, vec2( s0, yRange));
+
+		        #endif
+		      }
+
+		      void main() {
+		        vec4 originalColor = texture2D(tDiffuse, vUv);
+		        gl_FragColor = sampleAs3DTexture(lutMap, originalColor.xyz, lutMapSize);
+		      }
+		    `,
+		};	
+
+		const lutNearestShader = {
+		    uniforms: Object.assign( {}, lutShader.uniforms ),
+		    vertexShader: lutShader.vertexShader,
+		    fragmentShader: lutShader.fragmentShader.replace('#define FILTER_LUT', '//'),
+		};
+
+            effectLUT = new ShaderPass(lutShader);
+			effectLUT.renderToScreen = true;
+
+			effectLUTNearest = new ShaderPass(lutNearestShader);
+  			effectLUTNearest.renderToScreen = true;
+
+			const renderBG = new RenderPass(scene, camera);
+			const rtParameters = {
+			    minFilter: THREE.LinearFilter,
+			    magFilter: THREE.LinearFilter,
+			    format: THREE.RGBFormat,
+			};
+			  
+			composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, rtParameters));
+			composer.addPass(renderBG);
+			composer.addPass(effectLUT);
+			composer.addPass(effectLUTNearest);
+			composer.setSize(canvas.width, canvas.height);
+
 			setupIO();
-			// animate();
-			
+			animate();
+
 		}
 
 		function animate() {
-			// requestAnimationFrame( animate );
+			requestAnimationFrame( animate );
 		    render();
 		    // ts();
 
-		    mat.uniforms.needsUpdate = true;
-		    updateUniform(numBlob);
+		    // mat.uniforms.needsUpdate = true;
+		    // updateUniform(numBlob);
         }
 
 		function render() {
-            renderer.render( scene, camera );
+			const lutInfo = lutTextures[ lutSettings.lut ];
+			const effect = lutInfo.filter ? effectLUT : effectLUTNearest;
+			effectLUT.enabled = lutInfo.filter;
+			effectLUTNearest.enabled = !lutInfo.filter;
+
+			const lutTexture = lutInfo.texture;
+			effect.uniforms.lutMap.value = lutTexture;
+			// effect.uniforms.tDiffuse.value = lutTexture;
+			effect.uniforms.lutMapSize.value = lutInfo.size;
+
+			mat.uniforms.needsUpdate = true;
+		    updateUniform(lutSettings.lut);
+
+            composer.render();
 		}
 
 	</script>
