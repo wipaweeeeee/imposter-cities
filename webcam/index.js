@@ -64,7 +64,7 @@ setInterval(() => {
     // Optimization
     let frameOpt = region.resizeToMax(500);
     frameOpt = frameOpt.convertTo(cv.CV_64FC3);
-    const image = USE_STOCK_IMAGE? fs.readFileSync(ASSET_FOLDER + 'pavillion_invert_mg.png').toString('base64') : cv.imencode('.jpg', frameOpt).toString('base64');
+    const image = USE_STOCK_IMAGE? fs.readFileSync(ASSET_FOLDER + 'domus-canada-pavilion.jpg').toString('base64') : cv.imencode('.jpg', frameOpt).toString('base64');
 
     // DEVELOPMENT_MODE && console.log(byteCount(image))
     io.volatile.emit('data', {image: image});
